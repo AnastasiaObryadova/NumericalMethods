@@ -1,65 +1,81 @@
+#include <Windows.h>
 #include <stdlib.h>
-#define _USE_MATH_DEFINES
 #include <math.h>
-#include <cmath>
 #include <stdio.h>
-#include <iostream>
-int main()
+
+void NewtonMethod(double* currentX, double* nextX, double eps)
 {
-	float AijT[2][2];//транспонированна€ матрица алгебраических дополнений
-	float e = 0.001;
-
-	float lAl;//определитель
-	float A_1[2][2];//обратна€ матрица
-	// матрицы корней (x, y) прошлой и насто€щей итерации
-	float X2[2] = { 1,1 };
-	float X1[2] = { 2,2 };
-	float f[2];
-
 	printf("ћетод Ќьютона\n");
-	//ћетод Ќьютона
-	while (fabs(X2[0] - X1[0]) >= e || fabs(X2[1] - X1[1]) >= e)
+	double determinant;//определитель
+	double inverseJacobian[2][2];//обратна€ матрица
+	double transposedAdjugate[2][2];//транспонированна€ матрица алгебраических дополнений
+	double functionValues[2];
+
+	while (fabs(nextX[0] - currentX[0]) >= eps || fabs(nextX[1] - currentX[1]) >= eps)
 	{
 		//итераци€
-		X1[0] = X2[0];
-		X1[1] = X2[1];
+		currentX[0] = nextX[0];
+		currentX[1] = nextX[1];
 
 		//вычисление обратной матрицы
-		AijT[0][0] = -sin(X1[0] - 1) + 1;
-		AijT[0][1] = -2;
-		AijT[1][0] = -1;
-		AijT[1][1] = cos(X1[1]);
+		transposedAdjugate[0][0] = -sin(currentX[0] - 1.0) + 1.0;
+		transposedAdjugate[0][1] = -2.0;
+		transposedAdjugate[1][0] = -1.0;
+		transposedAdjugate[1][1] = cos(currentX[1]);
 
-		lAl = cos(X1[0]) * (-sin(X1[1] - 1) + 1) - 2;
+		determinant = cos(currentX[0]) * (-sin(currentX[1] - 1.0) + 1.0) - 2.0;
 
-		A_1[0][0] = AijT[0][0] * 1 / lAl;
-		A_1[0][1] = AijT[0][1] * 1 / lAl;
-		A_1[1][0] = AijT[1][0] * 1 / lAl;
-		A_1[1][1] = AijT[1][1] * 1 / lAl;
+		inverseJacobian[0][0] = transposedAdjugate[0][0] * 1 / determinant;
+		inverseJacobian[0][1] = transposedAdjugate[0][1] * 1 / determinant;
+		inverseJacobian[1][0] = transposedAdjugate[1][0] * 1 / determinant;
+		inverseJacobian[1][1] = transposedAdjugate[1][1] * 1 / determinant;
 
 		//вычисление Xi
-		f[0] = sin(X1[0]) + 2 * X1[1] - 1.6;
-		f[1] = X1[0] + cos(X1[1] - 1) - 1;
+		functionValues[0] = sin(currentX[0]) + 2.0 * currentX[1] - 1.6;
+		functionValues[1] = currentX[0] + cos(currentX[1] - 1.0) - 1.0;
 
-		X2[0] = X1[0] - (A_1[0][0] * f[0] + A_1[0][1] * f[1]);
-		X2[1] = X1[1] - (A_1[1][0] * f[0] + A_1[1][1] * f[1]);
+		nextX[0] = currentX[0] - (inverseJacobian[0][0] * functionValues[0] + inverseJacobian[0][1] * functionValues[1]);
+		nextX[1] = currentX[1] - (inverseJacobian[1][0] * functionValues[0] + inverseJacobian[1][1] * functionValues[1]);
 	}
-	printf("x = %f\ny = %f\n\n", X1[0], X1[1]);
-	//ћетод итераций
-	X1[0] = 2;//Ќулевое приближение
-	X1[1] = 2;
-	X2[0] = 0;
-	X2[1] = 1;
+	printf("x = %lf\ny = %lf\n\n", nextX[0], nextX[1]);
+}
+
+void IterationMethod(double* currentX, double* nextX, double eps)
+{
 	printf("ћетод итераций\n");
-	while (fabs(X1[0] - X2[0]) >= e or fabs(X1[1] - X2[1]) >= e)
-	{
-		//»тераци€
-		X1[0] = X2[0];
-		X1[1] = X2[1];
-		//вычисление очередного значени€
+	//Ќулевое приближение
+	currentX[0] = 2.0;
+	currentX[1] = 2.0;
 
-		X2[0] = 1 - cos(X1[1] - 1);
-		X2[1] = 0.8 - sin(X1[0]) * 0.5;
+	//ѕерва€ итераци€
+	nextX[0] = 1.0 - cos(currentX[1] - 1.0);
+	nextX[1] = 0.8 - sin(currentX[0]) * 0.5;
+	
+	//ќсновной цикл
+	while (fabs(currentX[0] - nextX[0]) >= eps || fabs(currentX[1] - nextX[1]) >= eps)
+	{
+		//—охранение старого значени€
+		currentX[0] = nextX[0];
+		currentX[1] = nextX[1];
+
+		//¬ычисление очередного значени€
+		nextX[0] = 1.0 - cos(currentX[1] - 1.0);
+		nextX[1] = 0.8 - sin(currentX[0]) * 0.5;
 	}
-	printf("x = %f\ny = %f\n", X1[0], X1[1]);
+	printf("x = %lf\ny = %lf\n", nextX[0], nextX[1]);
+}
+
+int main()
+{
+	SetConsoleCP(1251);
+	SetConsoleOutputCP(1251);
+
+	double eps = 0.00001;
+	double nextX[2] = { 1,1 };
+	double currentX[2] = { 2,2 };
+	
+	NewtonMethod(currentX, nextX, eps);
+	IterationMethod(currentX, nextX, eps);
+
+	return 0;
 }
