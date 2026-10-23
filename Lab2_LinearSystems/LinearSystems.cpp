@@ -1,175 +1,209 @@
-//#include <Windows.h>
+#include <Windows.h>
 #include <stdlib.h>
 #include <math.h>
-#include <cmath>
-//#include <conio.h>
 #include <stdio.h>
-#include <iostream>
 
-
-int main()
+void GaussMethod(double sourceMatrix[3][4], int totalEquations)
 {
-    setlocale(LC_ALL, "");
-    printf("Метод Гаусса:\n\n");
-    float e = 0.001;
-    int n = 3;
-    float d = 0;
-    float x[3] = {};
-    float y[3] = {};
-    float a[3][4] = { {0.92, -0.83, 0.62, 2.15}, {0.24, -0.54, 0.43, 0.62}, {0.73, -0.81, -0.67, 0.88} };
-    int i, j, k;
-    for (i = 1; i <= n; i++)
+    printf("Метод Гаусса:\n");
+    //перебор строк системы
+    for (int leadRow = 1; leadRow <= totalEquations; leadRow++)
     {
-        for (j = n + 1; j >= i; j--)
+        // Нормализация строки (деление элементов на диагональный)
+        double diagonalEl = sourceMatrix[leadRow - 1][leadRow - 1];
+        for (int col = totalEquations + 1; col >= leadRow; col--)
         {
-            a[i - 1][j - 1] = a[i - 1][j - 1] / a[i - 1][i - 1];
+            sourceMatrix[leadRow - 1][col - 1] = sourceMatrix[leadRow - 1][col - 1] / diagonalEl;
         }
-        for (k = 1; k <= n; k++)
+        // Исключение неизвестных из остальных строк матрицы
+        for (int subRow = 1; subRow <= totalEquations; subRow++)
         {
-            if (k != i)
+            if (subRow != leadRow)
             {
-                for (j = n + 1; j >= 1; j--)
+                // Вычитание ведущей строки, умноженной на коэффициент, из текущей строки
+                for (int col = totalEquations + 1; col >= 1; col--)
                 {
-                    a[k - 1][j - 1] = a[k - 1][j - 1] - a[k - 1][i - 1] * a[i - 1][j - 1];
+                    sourceMatrix[subRow - 1][col - 1] = sourceMatrix[subRow - 1][col - 1] - 
+                        sourceMatrix[subRow - 1][leadRow - 1] * sourceMatrix[leadRow - 1][col - 1];
                 }
             }
         }
     }
-    for (i = 1; i <= n; i++)
+    //Вывод результатов в консоль
+    for (int row = 1; row <= totalEquations; row++)
     {
-        printf("x%d = %f\n", i, a[i - 1][n]);
+        printf("x%d = %f\n", row, sourceMatrix[row - 1][totalEquations]);
     }
-    printf("\n");
-    printf("Метод Простых итераций:\n\n");
+}
 
-    float b[3][4] = { {92, -83, 62, 215}, {73, -81, -67, 88}, {-49, 27, 110, -26} };
-    float bb[3][4] = { {92, -83, 62, 215}, {73, -81, -67, 88}, {-49, 27, 110, -26} };
-    //float b[3][4] = { {7.6, 5.8, 4.7, 10.01}, {3.8, 4.1, 2.7, 9.7}, {2.9, 2.1, 3.89, 7.37} };
-    //float bb[3][4] = { {7.6, 5.8, 4.7, 10.01}, {3.8, 4.1, 2.7, 9.7}, {2.9, 2.1, 3.89, 7.37} };
-    float sum2 = 0;
+void SimpleIterationMethod(double diagonalDominantMatrix[3][4], int totalEquations, double eps)
+{
+    printf("\nМетод Простых итераций:\n");
 
-    for (int i = 0; i < n; i++)
+    double iterationMatrix[3][4] = { {0.68, -0.29, 0.19, 1.53}, {0.29, -1.06, -0.43, -0.03}, {-0.05, 0.52, 0.86, 0.65} };
+    double sumOfSquares = 0;
+
+    // Приведение исходной матрицы к итерационному виду (выражение x)
+    for (int row = 0; row < totalEquations; row++)
     {
-        for (int j = 0; j <= n; j++)
+        for (int col = 0; col <= totalEquations; col++)
         {
-            if (j == 3)
+            if (col == 3)
             {
-                bb[i][j] = b[i][j] / b[i][i];
+                iterationMatrix[row][col] = diagonalDominantMatrix[row][col] / diagonalDominantMatrix[row][row];
             }
             else
             {
-                bb[i][j] = -b[i][j] / b[i][i];
+                iterationMatrix[row][col] = -diagonalDominantMatrix[row][col] / diagonalDominantMatrix[row][row];
             }
         }
+        iterationMatrix[row][row] = 0;
+
     }
-    for (int i = 0; i < n; i++)
+
+    double currentError = 0;
+    double currentX[3] = { 0.0, 0.0, 0.0 };
+    double nextX[3] = { 1.0, 1.0, 1.0 };
+
+    // Подсчет критерия сходимости (суммы квадратов коэффициентов)
+    for (int row = 0; row < totalEquations; row++)
     {
-        for (int j = 0; j < n; j++)
+        for (int col = 0; col < totalEquations; col++)
         {
-            bb[i][i] = 0;
-            sum2 += bb[i][j] * bb[i][j];
+            sumOfSquares += iterationMatrix[row][col] * iterationMatrix[row][col];
         }
+
     }
-    if (sum2 < 1)
+    if (sumOfSquares > 1)
     {
         printf("Условие сходимости не выполняется");
     }
     else
     {
-        for (i = 1; i <= n; i++)
+        // Заполнение начального приближения первыми свободными членами
+        for (int row = 1; row <= totalEquations; row++)
         {
-            x[i - 1] = b[i - 1][n + 1 - 1];
+            currentX[row - 1] = iterationMatrix[row - 1][totalEquations + 1 - 1];
         }
-        d = 0;
-        for (i = 1; i <= n; i++)
+        // Первая итерация вне цикла
+        currentError = 0;
+        for (int row = 1; row <= totalEquations; row++)
         {
-            y[i - 1] = bb[i - 1][n + 1 - 1];
-            for (j = 1; j <= n; j++)
+            nextX[row - 1] = iterationMatrix[row - 1][totalEquations + 1 - 1];
+            for (int col = 1; col <= totalEquations; col++)
             {
-                y[i - 1] = y[i - 1] + bb[i - 1][j - 1] * x[i - 1];
+                nextX[row - 1] = nextX[row - 1] + iterationMatrix[row - 1][col - 1] * currentX[col - 1];
             }
-            d = d + (y[i - 1] - x[i - 1]) * (y[i - 1] - x[i - 1]);
+            currentError = currentError + (nextX[row - 1] - currentX[row - 1]) * (nextX[row - 1] - currentX[row - 1]);
 
         }
-        d = sqrt(d);
-        while (d > e)
+        currentError = sqrt(currentError);
+        // Основной цикл итерационного процесса
+        while (currentError > eps)
         {
-            for (i = 1; i <= n; i++)
+            for (int row = 1; row <= totalEquations; row++)
             {
-                x[i - 1] = y[i - 1];
+                currentX[row - 1] = nextX[row - 1];
             }
-            d = 0;
-            for (i = 1; i <= n; i++)
+            currentError = 0;
+            for (int row = 1; row <= totalEquations; row++)
             {
-                y[i - 1] = bb[i - 1][n + 1 - 1];
-                for (j = 1; j <= n; j++)
+                nextX[row - 1] = iterationMatrix[row - 1][totalEquations + 1 - 1];
+                for (int col = 1; col <= totalEquations; col++)
                 {
-                    y[i - 1] = y[i - 1] + bb[i - 1][j - 1] * x[j - 1];
+                    nextX[row - 1] = nextX[row - 1] + iterationMatrix[row - 1][col - 1] * currentX[col - 1];
                 }
-                d = d + (y[i - 1] - x[i - 1]) * (y[i - 1] - x[i - 1]);
+                currentError = currentError + (nextX[row - 1] - currentX[row - 1]) * (nextX[row - 1] - currentX[row - 1]);
             }
-            d = sqrt(d);
+            currentError = sqrt(currentError);
         }
-        for (i = 1; i <= n; i++)
+        //Вывод результатов в консоль
+        for (int i = 1; i <= totalEquations; i++)
         {
-            printf("x%d = %f\n", i, x[i - 1]);
+            printf("x%d = %f\n", i, currentX[i - 1]);
         }
 
     }
-    printf("\n");
-    printf("Метод Зейделя:\n");
-    float m[3][4] = { {16194, -14872, -4577, 27478}, {-14872, 14179, 3251, -25675}, {-4577, 3251, 20433, 4574} };
+}
 
-    d = 0;
-    for (i = 0; i < n; i++)
+
+void SeidelMethod(double diagonalDominantMatrix[3][4], int totalEquations, double eps)
+{
+    printf("\nМетод Зейделя:");
+
+    double iterationMatrix[3][4] = { {0.68, -0.29, 0.19, 1.53}, {0.29, -1.06, -0.43, -0.03}, {-0.05, 0.52, 0.86, 0.65} };
+    double currentError = 0;
+    double currentX[3] = { 0.0, 0.0, 0.0 };
+    double nextX[3] = { 1.0, 1.0, 1.0 };
+    double matrixNorm = 0;
+
+    // Приведение исходной матрицы к итерационному виду (выражение x)
+    for (int row = 0; row < totalEquations; row++)
     {
-        for (j = 0; j < n; j++)
+        for (int col = 0; col <= totalEquations; col++)
         {
-            if (j != i)
+            if (col == 3)
             {
-                m[i][j] = -m[i][j] / m[i][i];
-                d = d + m[i][j] * m[i][j];
+                iterationMatrix[row][col] = diagonalDominantMatrix[row][col] / diagonalDominantMatrix[row][row];
             }
+            else
+            {
+                iterationMatrix[row][col] = -diagonalDominantMatrix[row][col] / diagonalDominantMatrix[row][row];
+                if (col != row)
+                {
+                    matrixNorm += iterationMatrix[row][col] * iterationMatrix[row][col];
+                }
+            }
+
         }
-        m[i][n] = m[i][n] / m[i][i];
-        m[i][i] = 0;
+        iterationMatrix[row][row] = 0;
 
     }
-    //printf("%g %g %g \n", m[0][0], m[0][1], m[0][2]);
-    //printf("%g %g %g \n", m[1][0], m[1][1], m[1][2]);
-    //printf("%g %g %g \n", m[2][0], m[2][1], m[2][2]);
-    x[0] = 0;
-    x[1] = 0;
-    x[2] = 0;
-    y[0] = 1;
-    y[1] = 1;
-    y[2] = 1;
-    if (sqrtf(d) < 1)//
+    
+    // Проверка достаточного условия сходимости
+    if (sqrt(matrixNorm) > 1)
     {
-        printf("%f Условие сходимости не выполняется", sqrtf(d));
+        printf("Условие сходимости не выполняется");
     }
     else
     {
-        d = 2 * e;
-        while (d > e)
+        currentError = 2 * eps;
+        // Итерационный процесс
+        while (currentError > eps)
         {
-            d = 0;
-            for (i = 0; i < n; i++)
+            currentError = 0;
+            for (int row = 0; row < totalEquations; row++)
             {
-                y[i] = m[i][n];
-                for (j = 0; j < n; j++)
+                nextX[row] = iterationMatrix[row][totalEquations];
+                for (int col = 0; col < totalEquations; col++)
                 {
-                    y[i] = y[i] + m[i][j] * x[j];
+                    nextX[row] = nextX[row] + iterationMatrix[row][col] * currentX[col];
                 }
-                d = d + (y[i] - x[i]) * (y[i] - x[i]);
-                x[i] = y[i];
+                currentError = currentError + (nextX[row] - currentX[row]) * (nextX[row] - currentX[row]);
+                currentX[row] = nextX[row];
             }
-            d = sqrtf(d);
+            currentError = sqrt(currentError);
 
         }
-        for (i = 0; i < n; i++)
+        //Вывод результатов в консоль
+        for (int row = 0; row < totalEquations; row++)
         {
-            printf("\nx%d = %f", i, x[i]);
+            printf("\nx%d = %f", row, currentX[row]);
         }
     }
+}
+int main()
+{
+    SetConsoleCP(1251);
+    SetConsoleOutputCP(1251);
+    
+    int totalEquations = 3;
+    double eps = 0.00001;
+    double sourceMatrix[3][4] = { {0.92, -0.83, 0.62, 2.15}, {0.24, -0.54, 0.43, 0.62}, {0.73, -0.81, -0.67, 0.88} };
+    double diagonalDominantMatrix[3][4] = { {0.68, -0.29, 0.19, 1.53}, {0.29, -1.06, -0.43, -0.03}, {-0.05, 0.52, 0.86, 0.65} };
+    GaussMethod(sourceMatrix, totalEquations);
+    SimpleIterationMethod(diagonalDominantMatrix, totalEquations, eps);
+    SeidelMethod(diagonalDominantMatrix, totalEquations, eps);
+
+    return 0;
 }
