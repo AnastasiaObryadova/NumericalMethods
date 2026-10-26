@@ -1,73 +1,128 @@
 #include <stdlib.h>
-#define _USE_MATH_DEFINES
 #include <math.h>
-#include <cmath>
 #include <stdio.h>
-#include <iostream>
-#include <float.h>
 #include <Windows.h>
 #include <conio.h>
-unsigned long fact(unsigned long n)
+double CalculateFactorial(int number)
 {
-    if (n < 0)
-    {
-        return 0;
+    if (number <= 0) 
+        return 1.0;
+    double result = 1.0;
+    for (int i = 1; i <= number; i++) {
+        result *= i;
     }
-    if (n == 0)
-    {
-        return 1;
-    }
-    else
-    {
-        return n * fact(n - 1);
-    }
+    return result;
 }
-double K_Diff(double* my, int k, int i)
+// Вычисление конечной разности заданного порядка для конкретного узла
+double CalcFiniteDifference(double* yPoints, int differenceOrder, int targetNodeIndex)
 {
-    int ik;
-    double pr = 1;
-    double sum = 0;
-    for (ik = 0; ik <= k; ik++)
+    double totalSum = 0.0;
+    //Сумма
+    for (int addendIndex = 0; addendIndex <= differenceOrder; addendIndex++)
     {
-        pr = 1;
-        for (int j = 0; j <= ik; j++)
+        double product = 1.0;
+        //Произведение
+        for (int productIndex = 0; productIndex <= addendIndex; productIndex++)
         {
-            if (ik == j)
-            {
-                pr = pr * 1;
+            
+            if (addendIndex == productIndex) {
+                product = product * 1.0;
             }
-            else
-            {
-                pr = pr * (k - j);
+            else {
+                product = product * (differenceOrder - productIndex);
             }
         }
-        sum = sum + pr * pow((-1), ik) * (my[i + k - ik]) / fact(ik);
+        totalSum = totalSum + product * pow(-1.0, addendIndex) * 
+            yPoints[targetNodeIndex + differenceOrder - addendIndex] / (double)CalculateFactorial(addendIndex);
     }
-    return sum;
+    return totalSum;
 }
 
-double N(double x, double* my, double* mx, double h, int n)
+double NewtonForward(double targetX, double* yPoints, double* xPoints, double step, int degree)
 {
-    double pr;
-    double sum = 0;
-    for (int i = 0; i <= n; i++)
+    double totalSum = 0.0;
+    //Сумма
+    for (int currentDegree = 0; currentDegree <= degree; currentDegree++)
     {
-        pr = 1;
-        for (int j = 0; j <= i; j++)
+        double product = 1.0;
+        //Произведение
+        for (int j = 0; j <= currentDegree; j++)
         {
-            if (j == i)
-            {
-                pr = pr * 1;
+            if (j == currentDegree) {
+                product = product * 1.0;
             }
-            else
-            {
-                pr = pr * ((x - mx[0]) / h - j);
+            else {
+                // Движение вперед
+                product = product * (((targetX - xPoints[0]) / step) - j);
             }
         }
-        sum = sum + pr * (K_Diff(my, i, 0) / fact(i));
-    }
 
-    return sum;
+        // Берем конечные разности из НАЧАЛА таблицы (индекс 0)
+        totalSum = totalSum + product * (CalcFiniteDifference(yPoints, currentDegree, 0) / CalculateFactorial(currentDegree));
+    }
+    return totalSum;
+}
+
+
+double NewtonBackward(double targetX, double* yPoints, double* xPoints, double step, int degree)
+{
+    double totalSum = 0.0;
+    //Сумма
+    for (int currentDegree = 0; currentDegree <= degree; currentDegree++)
+    {
+        double product = 1.0;
+        //Произведение
+        for (int j = 0; j <= currentDegree; j++)
+        {
+            if (j == currentDegree) {
+                product = product * 1.0;
+            }
+            else {
+                // Движение назад
+                product = product * (((targetX - xPoints[degree]) / step) + j);
+            }
+        }
+
+        totalSum = totalSum + product * (CalcFiniteDifference(yPoints, currentDegree, degree - currentDegree) / CalculateFactorial(currentDegree));
+    }
+    return totalSum;
+}
+void DrawGraph(double* xPoints, double* yPoints, double step, int degree)
+{
+    HDC hDC = GetDC(GetConsoleWindow());
+
+    HPEN axisPen = CreatePen(PS_SOLID, 2, RGB(255, 255, 255));
+    HPEN graphPen = CreatePen(PS_SOLID, 2, RGB(255, 0, 0));
+    SelectObject(hDC, axisPen);
+
+    // Отрисовка осей координат (центр 200, 400)
+    MoveToEx(hDC, 100, 400, NULL);
+    LineTo(hDC, 1000, 400); // Ось X
+    MoveToEx(hDC, 200, 100, NULL);
+    LineTo(hDC, 200, 500);  // Ось Y
+
+    SelectObject(hDC, graphPen);
+
+    // Вывод графика погрешности первой формулы
+    for (int x = 0; x < degree; x++)
+    {
+        // Находим погрешность вычислений
+        double currentError = NewtonForward(xPoints[x], yPoints, xPoints, step, degree) - yPoints[x];
+        double nextError = NewtonForward(xPoints[x + 1], yPoints, xPoints, step, degree) - yPoints[x + 1];
+
+        int currentScreenX = (int)(5000 * (xPoints[x] - xPoints[0]) + 250);
+        int nextScreenX = (int)(5000 * (xPoints[x + 1] - xPoints[0]) + 250);
+
+        int currentScreenY = (int)(-100000000000000.0 * currentError + 400);
+        int nextScreenY = (int)(-100000000000000.0 * nextError + 400);
+
+        MoveToEx(hDC, currentScreenX, currentScreenY, NULL);
+        LineTo(hDC, nextScreenX, nextScreenY);
+    }
+    ReleaseDC(GetConsoleWindow(), hDC);
+    DeleteObject(axisPen);
+    DeleteObject(graphPen);
+    (void)_getch(); 
 }
 
 int main()
@@ -76,41 +131,22 @@ int main()
     SetConsoleOutputCP(1251);
     printf(" Интерполяционный полином Ньютона\n");
 
-    double mx[10] = { 0.101, 0.106, 0.111, 0.116, 0.121, 0.126, 0.131, 0.136, 0.141, 0.146 };
-    double my[10] = { 1.26183, 1.27644, 1.29122, 1.30617, 1.32130, 1.33660, 1.35207, 1.36773, 1.38357, 1.39959 };
+    double xPoints[10] = { 0.101, 0.106, 0.111, 0.116, 0.121, 0.126, 0.131, 0.136, 0.141, 0.146 };
+    double yPoints[10] = { 1.26183, 1.27644, 1.29122, 1.30617, 1.32130, 1.33660, 1.35207, 1.36773, 1.38357, 1.39959 };
 
     double x1[3] = { 0.1156, 0.1142, 0.1063 };
     double x2[3] = { 0.1457, 0.1452, 0.1369 };
-    double h = mx[1] - mx[0];//шаг интерполирования
+    //Шаг интерполирования
+    double step = xPoints[1] - xPoints[0];
     int n = 9;
-    printf("%f\n", N(0.526, my, mx, h, n));
-    printf("\n");
-    printf("%f\n", N(x1[0], my, mx, h, n));
-    printf("%f\n", N(x2[0], my, mx, h, n));
-    printf("%f\n", N(x1[1], my, mx, h, n));
-    printf("%f\n", N(x2[1], my, mx, h, n));
-    printf("%f\n", N(x1[2], my, mx, h, n));
-    printf("%f\n", N(x2[2], my, mx, h, n));
 
-    //оси
-    HDC hDC = GetDC(GetConsoleWindow());
-    HPEN Pen = CreatePen(PS_SOLID, 2, RGB(255, 255, 255));
-    SelectObject(hDC, Pen);
-
-    MoveToEx(hDC, 200, 400, NULL);//center (200;400) = (0; 0)
-    LineTo(hDC, 1000, 400);
-    MoveToEx(hDC, 200, 100, NULL);
-    LineTo(hDC, 200, 400);
-
-    HDC hDC3 = GetDC(GetConsoleWindow());
-    HPEN Pen3 = CreatePen(PS_SOLID, 2, RGB(255, 0, 0));
-    SelectObject(hDC3, Pen3);
-    for (int i = 0; i < 9; i++)
-    {
-        MoveToEx(hDC3, 5000 * mx[i] + 200, -10000000000000000 * (N(mx[i], my, mx, h, n) - my[i]) + 400, NULL);
-        LineTo(hDC3, 5000 * mx[i + 1] + 200, -10000000000000000 * (N(mx[i + 1], my, mx, h, n) - my[i + 1]) + 400);
-
+    for (int i = 0; i < 3; i++) {
+        printf(" В точке x = %.4f    P(x) = %f\n", x1[i], NewtonForward(x1[i], yPoints, xPoints, step, n));
     }
-    _getch();
-
+    for (int i = 0; i < 3; i++) {
+        printf(" В точке x = %.4f    P(x) = %f\n", x2[i], NewtonBackward(x2[i], yPoints, xPoints, step, n));
+    }
+    printf(" График погрешности первой формулы\n");
+    DrawGraph(xPoints, yPoints, step, n);
+    return 0;
 }

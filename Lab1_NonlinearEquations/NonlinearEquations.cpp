@@ -202,11 +202,11 @@ void DrawGraph()
 {
     HDC hDC = GetDC(GetConsoleWindow());
     //серое перо для осей 
-    HPEN AxisPen = CreatePen(PS_SOLID, 1, RGB(128, 128, 128));
+    HPEN axisPen = CreatePen(PS_SOLID, 1, RGB(128, 128, 128));
     //синее перо для графика
-    HPEN GraphPen = CreatePen(PS_SOLID, 2, RGB(0, 102, 204));
+    HPEN graphPen = CreatePen(PS_SOLID, 2, RGB(0, 102, 204));
 
-    SelectObject(hDC, AxisPen);
+    SelectObject(hDC, axisPen);
 
     // Отрисовка оси X
     MoveToEx(hDC, 400, 285, NULL);
@@ -223,7 +223,7 @@ void DrawGraph()
     MoveToEx(hDC, 550, 275, NULL);
     LineTo(hDC, 550, 295);
 
-    SelectObject(hDC, GraphPen);
+    SelectObject(hDC, graphPen);
 
     // Вынос графика функции на экран (Масштаб 50:1, Центр в точке 600, 285)
     for (double x = -8.0; x <= 8.0; x += 0.01)
@@ -234,6 +234,11 @@ void DrawGraph()
         MoveToEx(hDC, screenX, screenY, NULL);
         LineTo(hDC, screenX, screenY);
     }
+
+    ReleaseDC(GetConsoleWindow(), hDC);
+    DeleteObject(axisPen);
+    DeleteObject(graphPen);
+    
 }
 
 
