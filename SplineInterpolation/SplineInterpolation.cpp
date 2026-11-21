@@ -1,104 +1,147 @@
 #include <stdlib.h>
 #define _USE_MATH_DEFINES
 #include <math.h>
-#include <cmath>
 #include <stdio.h>
-#include <iostream>
-#include <float.h>
 #include <Windows.h>
 #include <conio.h>
 
-// Количество точек
-#define n 6
+#define POINTS_COUNT 6
 
-// Функция для вычисления сплайнов
-double Spl(double x, double x_points[], double y_points[])
+// Вычисление значения кубического сплайна в заданной точке
+double CalculateSpline(double targetX, double xPoints[], double yPoints[])
 {
-    double h[n - 1], alpha[n - 1], l[n], mu[n], z[n], c[n], b[n], d[n];
-    double a[n];
-    int i;
+    double step[POINTS_COUNT - 1];
+    double alpha[POINTS_COUNT - 1] = { 0.0 };
+    double l[POINTS_COUNT];
+    double mu[POINTS_COUNT];
+    double z[POINTS_COUNT];
 
-    // Вычисление коэффициентов сплайна
-    for (i = 0; i < n - 1; i++) {
-        h[i] = x_points[i + 1] - x_points[i];
-        alpha[i] = (3.0 / h[i]) * (y_points[i + 1] - y_points[i]) - (3.0 / h[i - 1]) * (y_points[i] - y_points[i - 1]);
+    double coeffC[POINTS_COUNT];
+    double coeffB[POINTS_COUNT];
+    double coeffD[POINTS_COUNT];
+    double coeffA[POINTS_COUNT];
+
+    // Вычисление шагов и вспомогательных коэффициентов
+    for (int i = 0; i < POINTS_COUNT - 1; i++) {
+        step[i] = xPoints[i + 1] - xPoints[i];
+    }
+    for (int i = 1; i < POINTS_COUNT - 1; i++) {
+        alpha[i] = (3.0 / step[i]) * (yPoints[i + 1] - yPoints[i]) -
+            (3.0 / step[i - 1]) * (yPoints[i] - yPoints[i - 1]);
     }
 
+    // Прямой ход метода прогонки
     l[0] = 1.0;
-    mu[0] = z[0] = 0.0;
+    mu[0] = 0.0;
+    z[0] = 0.0;
 
-    for (i = 1; i < n - 1; i++) {
-        l[i] = 2.0 * (x_points[i + 1] - x_points[i - 1]) - h[i - 1] * mu[i - 1];
-        mu[i] = h[i] / l[i];
-        z[i] = (alpha[i] - h[i - 1] * z[i - 1]) / l[i];
+    for (int i = 1; i < POINTS_COUNT - 1; i++) {
+        l[i] = 2.0 * (xPoints[i + 1] - xPoints[i - 1]) - step[i - 1] * mu[i - 1];
+        mu[i] = step[i] / l[i];
+        z[i] = (alpha[i] - step[i - 1] * z[i - 1]) / l[i];
     }
 
-    l[n - 1] = 1.0;
-    z[n - 1] = c[n - 1] = 0.0;
+    // Обратный ход метода прогонки и расчет коэффициентов сплайна
+    l[POINTS_COUNT - 1] = 1.0;
+    z[POINTS_COUNT - 1] = 0.0;
+    coeffC[POINTS_COUNT - 1] = 0.0;
 
-    for (i = n - 2; i >= 0; i--) {
-        c[i] = z[i] - mu[i] * c[i + 1];
-        b[i] = (y_points[i + 1] - y_points[i]) / h[i] - h[i] * (c[i + 1] + 2.0 * c[i]) / 3.0;
-        d[i] = (c[i + 1] - c[i]) / (3.0 * h[i]);
-        a[i] = y_points[i];
+    for (int i = POINTS_COUNT - 2; i >= 0; i--) {
+        coeffC[i] = z[i] - mu[i] * coeffC[i + 1];
+        coeffB[i] = (yPoints[i + 1] - yPoints[i]) / step[i] - step[i] * (coeffC[i + 1] + 2.0 * coeffC[i]) / 3.0;
+        coeffD[i] = (coeffC[i + 1] - coeffC[i]) / (3.0 * step[i]);
+        coeffA[i] = yPoints[i];
     }
 
-    // Нахождение сегмента, в котором находится x
-    int segment = -1;
-    for (i = 0; i < n - 1; i++) {
-        if (x >= x_points[i] && x <= x_points[i + 1]) {
-            segment = i;
+    // Поиск отрезка, в который попадает targetX
+    int segmentIndex = -1;
+    for (int i = 0; i < POINTS_COUNT - 1; i++) {
+        if (targetX >= xPoints[i] && targetX <= xPoints[i + 1]) {
+            segmentIndex = i;
             break;
         }
     }
+    if (segmentIndex == -1) {
+        return 0.0;
+    }
+    // Вычисление значения полинома на найденном отрезке
+    double deltaX = targetX - xPoints[segmentIndex];
+    double resultY = coeffA[segmentIndex] + coeffB[segmentIndex] * deltaX + 
+        coeffC[segmentIndex] * pow(deltaX, 2) + coeffD[segmentIndex] * pow(deltaX, 3);
 
-    // Вычисление значения сплайна в точке x
-    double dx = x - x_points[segment];
-    double y = a[segment] + b[segment] * dx + c[segment] * pow(dx, 2) + d[segment] * pow(dx, 3);
+    return resultY;
+}
+void DrawGraph(double* xPoints, double* yPoints)
+{
+    const int originX = 680;
+    const int originY = 400;
+    const double scale = 100.0;
 
-    return y;
+    HDC hDC = GetDC(GetConsoleWindow());
+    HPEN axisPen = CreatePen(PS_SOLID, 2, RGB(255, 255, 255));
+    SelectObject(hDC, axisPen);
+
+    // Отрисовка осей координат 
+    MoveToEx(hDC, originX, originY, NULL);
+    LineTo(hDC, originX + 300, originY); // Ось X
+    MoveToEx(hDC, originX, 100, NULL);
+    LineTo(hDC, originX, originY);       // Ось Y
+
+    // Отрисовка исходных узлов интерполяции
+    HPEN pointsPen = CreatePen(PS_SOLID, 5, RGB(255, 0, 0));
+    SelectObject(hDC, pointsPen);
+    for (int i = 0; i < POINTS_COUNT; i++) {
+        int screenX = (int)(scale * xPoints[i] + originX);
+        int screenY = (int)(-scale * yPoints[i] + originY + 1);
+
+        MoveToEx(hDC, screenX, screenY, NULL);
+        LineTo(hDC, screenX, screenY);
+    }
+
+    // Отрисовка кривой сплайна
+    HPEN splinePen = CreatePen(PS_SOLID, 2, RGB(0, 255, 255));
+    SelectObject(hDC, splinePen);
+    double plotStep = 0.001;
+    for (double currentX = xPoints[0]; currentX <= xPoints[POINTS_COUNT - 1] - plotStep; currentX += plotStep) {
+        int currentScreenX = (int)(scale * currentX + originX);
+        int currentScreenY = (int)(-scale * CalculateSpline(currentX, xPoints, yPoints) + originY);
+
+        int nextScreenX = (int)(scale * (currentX + plotStep) + originX);
+        int nextScreenY = (int)(-scale * CalculateSpline(currentX + plotStep, xPoints, yPoints) + originY);
+
+        MoveToEx(hDC, currentScreenX, currentScreenY, NULL);
+        LineTo(hDC, nextScreenX, nextScreenY);
+    }
+
+    ReleaseDC(GetConsoleWindow(), hDC);
+    DeleteObject(axisPen);
+    DeleteObject(pointsPen);
+    DeleteObject(splinePen);
+    (void)_getch();
 }
 
 int main() {
 
     SetConsoleCP(1251);
     SetConsoleOutputCP(1251);
-    printf(" Интерполирование сплайнами\n");
-    double x[n] = { 0.35, 0.41, 0.47, 0.51, 0.56, 0.64 };
-    double y[n] = { 2.73951, 2.3008, 1.96864, 1.78776, 1.59502, 1.3431 };
+    printf(" Интерполирование сплайнами\n\n");
 
-    double xx = 0.526;
-    printf(" f(%f) = %.5f\n", xx, Spl(xx, x, y));
+    double xPoints[POINTS_COUNT] = { 0.35, 0.41, 0.47, 0.51, 0.56, 0.64 };
+    double yPoints[POINTS_COUNT] = { 2.73951, 2.3008, 1.96864, 1.78776, 1.59502, 1.3431 };
 
-    //оси
-    HDC hDC = GetDC(GetConsoleWindow());
-    HPEN Pen = CreatePen(PS_SOLID, 2, RGB(255, 255, 255));
-    SelectObject(hDC, Pen);
+    double targetX = 0.526;
 
-    MoveToEx(hDC, 300, 400, NULL);//center (300;400) = (0; 0)
-    LineTo(hDC, 1100, 400);
-    MoveToEx(hDC, 300, 100, NULL);
-    LineTo(hDC, 300, 400);
-
-    HDC hDC3 = GetDC(GetConsoleWindow());
-    HPEN Pen3 = CreatePen(PS_SOLID, 5, RGB(255, 0, 0));
-    SelectObject(hDC3, Pen3);
-    for (int i = 0; i < 6; i++)
-    {
-        MoveToEx(hDC3, 100 * x[i] + 300, -100 * y[i] + 401, NULL);
-        LineTo(hDC3, 100 * x[i] + 300, -100 * y[i] + 401);
-
+    printf("  Исходные узлы интерполяции:\n");
+    printf("  i  |    x    |    y    \n");
+    printf("-----+---------+---------\n");
+    for (int i = 0; i < POINTS_COUNT; i++) {
+        printf("  %d  | %.5f | %.5f\n", i, xPoints[i], yPoints[i]);
     }
 
-    HDC hDC4 = GetDC(GetConsoleWindow());
-    HPEN Pen4 = CreatePen(PS_SOLID, 2, RGB(0, 255, 255));
-    SelectObject(hDC4, Pen4);
-    for (double i = 0.35; i <= 0.63; i = i + 0.001)
-    {
-        MoveToEx(hDC4, 100 * i + 300, -100 * Spl(i, x, y) + 400, NULL);
-        LineTo(hDC4, 100 * (i + 0.001) + 300, -100 * Spl(i + 0.001, x, y) + 400);
+    double resultY = CalculateSpline(targetX, xPoints, yPoints);
+    printf("  Искомая точка: x = %.5f\n", targetX);
+    printf("  Значение сплайна: S(%.5f) = %.5f\n", targetX, resultY);
 
-    }
-    _getch();
+    DrawGraph(xPoints, yPoints);
     return 0;
 }
