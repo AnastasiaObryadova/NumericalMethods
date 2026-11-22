@@ -1,107 +1,144 @@
 #include <stdlib.h>
 #define _USE_MATH_DEFINES
 #include <math.h>
-#include <cmath>
 #include <stdio.h>
-#include <iostream>
-#include <float.h>
 #include <Windows.h>
 #include <conio.h>
-double Ln(double x, double a[][3], int n)
+
+#define POINTS_COUNT 8
+#define MATRIX_ROWS 2
+#define MATRIX_COLS 3
+
+// Вычисление значения показательной функции: f(x) = coeffA * exp(coeffB * x)
+double CalculateExpLeastSquares(double targetX, double matrix[][MATRIX_COLS], int freeTermCol)
 {
-    return a[1][n] * exp(x * a[0][n]);
+    return matrix[1][freeTermCol] * exp(targetX * matrix[0][freeTermCol]);
+}
+
+// Решение системы линейных уравнений методом Гаусса-Жордана
+void SolveGaussJordan(double matrix[][MATRIX_COLS], int equationsCount)
+{
+    for (int i = 1; i <= equationsCount; i++) {
+        for (int j = equationsCount + 1; j >= i; j--) {
+            matrix[i - 1][j - 1] /= matrix[i - 1][i - 1];
+        }
+        for (int k = 1; k <= equationsCount; k++) {
+            if (k != i) {
+                for (int j = equationsCount + 1; j >= 1; j--) {
+                    matrix[k - 1][j - 1] -= matrix[k - 1][i - 1] * matrix[i - 1][j - 1];
+                }
+            }
+        }
+    }
+}
+
+// Отрисовка осей, исходных точек и графика аппроксимирующей функции
+void DrawGraph(const double* xPoints, const double* yPoints, double matrix[][MATRIX_COLS], int freeTermCol)
+{
+    const int originX = 680;
+    const int originY = 400;
+    const double scale = 5.0;
+
+    HWND consoleWindow = GetConsoleWindow();
+    HDC hDC = GetDC(consoleWindow);
+
+    HPEN axisPen = CreatePen(PS_SOLID, 1, RGB(255, 255, 255));
+    HPEN pointsPen = CreatePen(PS_SOLID, 5, RGB(255, 0, 0));
+    HPEN graphPen = CreatePen(PS_SOLID, 2, RGB(0, 255, 255));
+
+    // Отрисовка осей координат (центр 400, 400)
+    SelectObject(hDC, axisPen);
+    MoveToEx(hDC, originX, originY, NULL);
+    LineTo(hDC, 1000, originY);// Ось X
+    MoveToEx(hDC, originX, 100, NULL);
+    LineTo(hDC, originX, originY);// Ось Y
+
+    // Отрисовка исходных точек
+    SelectObject(hDC, pointsPen);
+    for (int i = 0; i < POINTS_COUNT; i++) {
+        int screenX = (int)(scale * xPoints[i] + originX);
+        int screenY = (int)(-scale * yPoints[i] + originY + 1);
+
+        MoveToEx(hDC, screenX, screenY, NULL);
+        LineTo(hDC, screenX, screenY);
+    }
+
+    // Отрисовка графика показательной функции
+    SelectObject(hDC, graphPen);
+    double plotStep = 0.0001;
+    for (double currentX = -2.0; currentX < 6.0; currentX += plotStep) {
+        int currentScreenX = (int)(scale * currentX + originX);
+        int currentScreenY = (int)(-scale * CalculateExpLeastSquares(currentX, matrix, freeTermCol) + originY);
+
+        int nextScreenX = (int)(scale * (currentX + plotStep) + originX);
+        int nextScreenY = (int)(-scale * CalculateExpLeastSquares(currentX + plotStep, matrix, freeTermCol) + originY);
+
+        MoveToEx(hDC, currentScreenX, currentScreenY, NULL);
+        LineTo(hDC, nextScreenX, nextScreenY);
+    }
+
+    ReleaseDC(consoleWindow, hDC);
+    DeleteObject(axisPen);
+    DeleteObject(pointsPen);
+    DeleteObject(graphPen);
+    (void)_getch();
 }
 
 int main()
 {
     SetConsoleCP(1251);
     SetConsoleOutputCP(1251);
-    printf(" Показательная функция\n");
-
-    double mx[8] = { -0.64 , -0.36 , -0.08 , 0.2 , 0.48 , 0.76 , 1.04 , 1.32 };
-    double my[8] = { log(29.51), log(18.86), log(12.05), log(7.7), log(4.92), log(3.14), log(2.01), log(1.28) };
-
-    double mx1[8] = { -0.64 , -0.36 , -0.08 , 0.2 , 0.48 , 0.76 , 1.04 , 1.32 };
-    double my1[8] = { 29.51, 18.86, 12.05, 7.7, 4.92, 3.14, 2.01, 1.28 };
-
-    int n1 = 7;
-    double sumx = 0;
-    double sumxx = 0;
-    double sumy = 0;
-    double sumxy = 0;
-    for (int i = 0; i <= n1;i++)
-    {
-        sumx += mx[i];
-        sumxx += mx[i] * mx[i];
-        sumy += my[i];
-        sumxy += mx[i] * my[i];
+    
+    double xPoints[POINTS_COUNT] = { -0.64 , -0.36 , -0.08 , 0.2 , 0.48 , 0.76 , 1.04 , 1.32 };
+    double yPoints[POINTS_COUNT] = { 29.51, 18.86, 12.05, 7.7, 4.92, 3.14, 2.01, 1.28 };
+    double logYPoints[POINTS_COUNT];
+    for (int i = 0; i < POINTS_COUNT; i++) {
+        logYPoints[i] = log(yPoints[i]);
     }
-    double a[2][3] = { {sumxx, sumx, sumxy},{sumx, 8.0, sumy} };
-    //printf(" %f %f %f %f %f %f\n", a[0][0], a[0][1], a[0][2], a[1][0], a[1][1], a[1][2]);
-    //Поиск коэф методом Гаусса
-    double e = 0.001;
-    double d = 0;
-    int i, j, k;
-    int n = 2;
-    for (i = 1; i <= n; i++)
+
+    // Вычисление сумм для метода наименьших квадратов
+    double sumX = 0.0;
+    double sumXX = 0.0;
+    double sumLogY = 0.0;
+    double sumXLogY = 0.0;
+
+    for (int i = 0; i < POINTS_COUNT; i++)
     {
-        for (j = n + 1; j >= i; j--)
-        {
-            a[i - 1][j - 1] = a[i - 1][j - 1] / a[i - 1][i - 1];
-        }
-        for (k = 1; k <= n; k++)
-        {
-            if (k != i)
-            {
-                for (j = n + 1; j >= 1; j--)
-                {
-                    a[k - 1][j - 1] = a[k - 1][j - 1] - a[k - 1][i - 1] * a[i - 1][j - 1];
-                }
-            }
-        }
+        sumX += xPoints[i];
+        sumXX += xPoints[i] * xPoints[i];
+        sumLogY += logYPoints[i];
+        sumXLogY += xPoints[i] * logYPoints[i];
     }
-    a[1][n] = exp(a[1][n]);
-    printf(" f(x) = %f * e ^ (%f * x)\n", a[1][n], a[0][n]);
+    
+    // Составление расширенной матрицы и поиск коэффициентов
+    double systemMatrix[MATRIX_ROWS][MATRIX_COLS] = {
+       { sumXX, sumX, sumXLogY },
+       { sumX, (double)POINTS_COUNT, sumLogY }
+    };
+    
+    int equationsCount = 2;
+    SolveGaussJordan(systemMatrix, equationsCount);
+    systemMatrix[1][equationsCount] = exp(systemMatrix[1][equationsCount]);
 
-
-    //Проверка точности
-    double sumtoch = 0;
-    for (int i = 0; i <= n1;i++)
+    printf("   Аппроксимация показательной функцией (МНК)\n\n");
+    printf("   Найденное уравнение:\n");
+    printf("   f(x) = %f * e ^ (%f * x)\n", systemMatrix[1][equationsCount], systemMatrix[0][equationsCount]);
+    printf("   Таблица проверки точности:\n");
+    printf("     i  |    x    |   y (исх)  |  f(x) (расч) |  Ошибка\n");
+    printf("   -----+---------+------------+---------------+----------\n");
+    
+    // Проверка точности (сумма квадратов отклонений)
+    double squaredErrorSum = 0.0;
+    for (int i = 0; i < POINTS_COUNT;i++)
     {
-        //printf(" %f\n", Ln(mx1[i], a, n));
-        sumtoch = sumtoch + ((my1[i] - Ln(mx[i], a, n)) * (my1[i] - Ln(mx[i], a, n)));
+        double approxY = CalculateExpLeastSquares(xPoints[i], systemMatrix, equationsCount);
+        double diff = yPoints[i] - approxY;
+        squaredErrorSum += diff * diff;
+
+        printf("     %d  | %7.2f | %10.4f | %13.4f | %+8.4f\n", i, xPoints[i], yPoints[i], approxY, diff);
     }
-    printf(" Отклонение = %f\n", sumtoch);
+    printf("\n   Сумма квадратов отклонений: %.6f\n", squaredErrorSum);
 
-    //оси
-
-    HDC hDC = GetDC(GetConsoleWindow());
-    HPEN Pen = CreatePen(PS_SOLID, 1, RGB(255, 255, 255));
-    SelectObject(hDC, Pen);
-
-    MoveToEx(hDC, 400, 400, NULL);//center (400;400) = (0; 0)
-    LineTo(hDC, 1000, 400);
-    MoveToEx(hDC, 400, 100, NULL);
-    LineTo(hDC, 400, 400);
-
-    HDC hDC3 = GetDC(GetConsoleWindow());
-    HPEN Pen3 = CreatePen(PS_SOLID, 5, RGB(255, 0, 0));
-    SelectObject(hDC3, Pen3);
-    for (int i = 0; i < 8; i++)
-    {
-        MoveToEx(hDC3, 5 * mx1[i] + 400, -5 * my1[i] + 401, NULL);
-        LineTo(hDC3, 5 * mx1[i] + 400, -5 * my1[i] + 401);
-
-    }
-    HDC hDC4 = GetDC(GetConsoleWindow());
-    HPEN Pen4 = CreatePen(PS_SOLID, 2, RGB(0, 255, 255));
-    SelectObject(hDC4, Pen4);
-    for (double i = -2; i < 6; i = i + 0.0001)//
-    {
-        MoveToEx(hDC4, 5 * i + 400, -5 * Ln(i, a, n) + 400, NULL);
-        LineTo(hDC4, 5 * (i + 0.0001) + 400, -5 * Ln(i + 0.0001, a, n) + 400);
-
-    }
-    _getch();
-
+    DrawGraph(xPoints, yPoints, systemMatrix, equationsCount);
+    return 0;
 }
