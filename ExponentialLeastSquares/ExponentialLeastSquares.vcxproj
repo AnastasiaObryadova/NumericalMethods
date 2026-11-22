@@ -19,7 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="ExponentialLeastSquares.cpp" />
+    <ClCompile Include="LeastSquares.cpp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>17.0</VCProjectVersion>
@@ -27,6 +27,7 @@
     <ProjectGuid>{da4994cc-6d94-4ba2-a6d7-9b18f21a2fb9}</ProjectGuid>
     <RootNamespace>ExponentialLeastSquares</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
+    <ProjectName>LeastSquares</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">

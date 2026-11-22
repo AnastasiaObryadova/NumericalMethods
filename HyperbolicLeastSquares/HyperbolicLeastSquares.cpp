@@ -1,10 +1,7 @@
 #include <stdlib.h>
 #define _USE_MATH_DEFINES
 #include <math.h>
-#include <cmath>
 #include <stdio.h>
-#include <iostream>
-#include <float.h>
 #include <Windows.h>
 #include <conio.h>
 double Ln(double x, double a[][3], int n)
@@ -19,9 +16,6 @@ int main()
     SetConsoleOutputCP(1251);
     printf(" Гиперболическая функция\n");
 
-    //double mx[8] = { 1/-0.64, 1 / -0.36 , 1 / -0.08 , 1 / 0.2 , 1 / 0.48 , 1 / 0.76 , 1 / 1.04 , 1 / 1.32 };
-    //double my[8] = { 29.51, 18.86, 12.05, 7.7, 4.92, 3.14, 2.01, 1.28 };
-    //printf(" %f %f %f %f %f %f %f %f\n", mx[0], mx[1], mx[2], mx[3], mx[4], mx[5], mx[5], mx[7]);
     double mx1[8] = { -0.64, -0.36 , -0.08 , 0.2 , 0.48 , 0.76 , 1.04 , 1.32 };
     double my1[8] = { 29.51, 18.86, 12.05, 7.7, 4.92, 3.14, 2.01, 1.28 };
 
