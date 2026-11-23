@@ -1,246 +1,249 @@
 #include <stdlib.h>
 #define _USE_MATH_DEFINES
 #include <math.h>
-#include <cmath>
 #include <stdio.h>
-#include <iostream>
-#include <float.h>
 #include <Windows.h>
 #include <conio.h>
 
-double fact(int n)
+#define POINTS_COUNT 11
+
+// Правая часть дифференциального уравнения: y' = f(x, y)
+double EvaluateODE(double x, double y)
 {
-    return (n < 2) ? 1 : n * fact(n - 1);
-}
-double F(double x, double y)
-{
-    //return 0.133 * (x * x + sin(2 * x)) + 0.872 * y;
     return x + cos(y / 3.14);
 }
-double maxn(double arr[])
+
+// Интегрирование методом левых прямоугольников для метода Пикара
+double IntegrateLeftRectangles(double lowerBorder, double upperBorder, double fixedY)
 {
-    double max = 0;
-    for (int i = 0; i < 11; i++)
-    {
-        if (arr[i] > max)
-            max = arr[i];
+    int stepsCount = 1000;
+    double step = (upperBorder - lowerBorder) / stepsCount;
+    double sum = 0.0;
+
+    for (int i = 0; i < stepsCount; i++) {
+        double currentX = lowerBorder + i * step;
+        sum += EvaluateODE(currentX, fixedY);
     }
-    return max;
+
+    return step * sum;
 }
 
-float int_l(double a, double b, double y)
+// Метод последовательных приближений Пикара
+void SolvePicard(double startX, double endX, double step, double initialY, double* yValues)
 {
-    float h, S, x;
-    int i;
-    int n = 1000;
-    h = (b - a) * 1.0 / n;
-    S = 0;
-    for (i = 0;i <= n - 1;i++)
+    int stepsCount = (int)round((endX - startX) / step);
+    double xValues[POINTS_COUNT] = {};
+    yValues[0] = initialY;
+
+    for (int i = 0; i <= stepsCount;i++)
     {
-        x = a + i * h;
-        S = S + F(x, y);
+        xValues[i] = startX + i * step;
     }
-    S = h * S;
-    return S;
+    for (int i = 1; i <= stepsCount;i++)
+    {
+        yValues[i] = yValues[0] + IntegrateLeftRectangles(startX, xValues[i], yValues[i - 1]);
+    }
 }
 
-double* pik(double a, double b, double h, double y0)
+// Метод Эйлера
+void SolveEuler(double startX, double endX, double step, double initialY, double* yValues)
 {
-    double n = (b - a) / h;
-    double y[11] = {};
-    double x[11] = {};
-    double out[11] = {};
-    y[0] = y0;
-    for (int i = 0; i <= n;i++)
+    int stepsCount = (int)round((endX - startX) / step);
+    yValues[0] = initialY;
+    double deltaY;
+    for (int i = 0; i < stepsCount;i++)
     {
-        x[i] = a + i * h;
+        double currentX = startX + i * step;
+        deltaY = step * EvaluateODE(currentX, yValues[i]);
+        yValues[i + 1] = yValues[i] + deltaY;
     }
-    for (int i = 1; i <= n;i++)
-    {
-        y[i] = y[0] + int_l(a, x[i], y[i - 1]);
-    }
-    return y;
-}
-double* eyl(double a, double b, double h, double y0)
-{
-    double n = (b - a) / h;
-    double y[11] = {};
-    y[0] = y0;
-    double x[11] = {};
-    double dy;
-    for (int i = 0; i <= n;i++)
-    {
-        x[i] = a + i * h;
-        dy = h * F(x[i], y[i]);
-        if (i < n)
-            y[i + 1] = y[i] + dy;
-    }
-    return y;
 }
 
-double* ys_eyl(double a, double b, double h, double y0)
+//Усовершенствованный метод Эйлера
+void SolveImprovedEuler(double startX, double endX, double step, double initialY, double* yValues)
 {
-    double n = (b - a) / h;
-    double y[11] = {};
-    y[0] = y0;
-    double x[11] = {};
-    double xi05, yi05;
-    for (int i = 0; i <= n;i++)
+    int stepsCount = (int)round((endX - startX) / step);
+    yValues[0] = initialY;
+
+    for (int i = 0; i < stepsCount;i++)
     {
-        x[i] = a + i * h;
-        yi05 = y[i] + h / 2 * F(x[i], y[i]);
-        xi05 = x[i] + h / 2;
-        if (i < n)
-            y[i + 1] = y[i] + h * F(xi05, yi05);
+        double currentX = startX + i * step;
+        double halfY = yValues[i] + step / 2 * EvaluateODE(currentX, yValues[i]);
+        double halfX = currentX + step / 2;
+        yValues[i + 1] = yValues[i] + step * EvaluateODE(halfX, halfY);
     }
-    return y;
 }
 
-double* ryn(double a, double b, double h, double y0)
+//Метод Рунге-Кутта 4 - го порядка
+void SolveRungeKutta(double startX, double endX, double step, double initialY, double* yValues)
 {
-    double n = (b - a) / h;
-    double y[11] = {};
-    double x[11] = {};
-    y[0] = y0;
-    double k1, k2, k3, k4;
-    double dy;
-    for (int i = 0; i <= n;i++)
+    int stepsCount = (int)round((endX - startX) / step);
+    yValues[0] = initialY;
+
+    for (int i = 0; i < stepsCount;i++)
     {
-        x[i] = a + i * h;
-        k1 = h * F(x[i], y[i]);
-        k2 = h * F(x[i] + h / 2, y[i] + k1 / 2);
-        k3 = h * F(x[i] + h / 2, y[i] + k2 / 2);
-        k4 = h * F(x[i] + h, y[i] + k3);
-        dy = (k1 + 2 * k2 + 2 * k3 + k4) / 6;
-        if (i < n)
-            y[i + 1] = y[i] + dy;
+        double currentX = startX + i * step;
+        double k1 = step * EvaluateODE(currentX, yValues[i]);
+        double k2 = step * EvaluateODE(currentX + step / 2, yValues[i] + k1 / 2);
+        double k3 = step * EvaluateODE(currentX + step / 2, yValues[i] + k2 / 2);
+        double k4 = step * EvaluateODE(currentX + step, yValues[i] + k3);
+        double deltaY = (k1 + 2 * k2 + 2 * k3 + k4) / 6;
+        yValues[i + 1] = yValues[i] + deltaY;
     }
-    return y;
 
 }
-double* ad(double a, double b, double h, double y0)
+
+// Метод Адамса
+void SolveAdams(double startX, double endX, double step, double initialY, double* yValues)
 {
-    double n = (b - a) / h;
-    double y[11] = {};
-    double x[11] = {};
-    double z[10][10] = {};
-    double k1, k2, k3, k4;
-    double dy, m;
-    int p, q, v;
-    x[0] = a;
-    for (int i = 0; i <= n - 1;i++)
+    int stepsCount = (int)round((endX - startX) / step);
+    double xValues[POINTS_COUNT] = { 0.0 };
+    double diffTable[10][10] = { 0.0 };
+    
+    xValues[0] = startX;
+    for (int i = 0; i <= stepsCount - 1;i++)
     {
-        x[i + 1] = x[i] + h;
+        xValues[i + 1] = xValues[i] + step;
     }
-    y[0] = y0;
+
+    // Первые 3 шага методом Рунге-Кутта
+    yValues[0] = initialY;
     for (int i = 0; i <= 3 - 1;i++)
     {
-        k1 = h * F(x[i], y[i]);
-        k2 = h * F(x[i] + h / 2, y[i] + k1 / 2);
-        k3 = h * F(x[i] + h / 2, y[i] + k2 / 2);
-        k4 = h * F(x[i] + h, y[i] + k3);
-        dy = (k1 + 2 * k2 + 2 * k3 + k4) / 6;
-        y[i + 1] = y[i] + dy;
+        double k1 = step * EvaluateODE(xValues[i], yValues[i]);
+        double k2 = step * EvaluateODE(xValues[i] + step / 2, yValues[i] + k1 / 2);
+        double k3 = step * EvaluateODE(xValues[i] + step / 2, yValues[i] + k2 / 2);
+        double k4 = step * EvaluateODE(xValues[i] + step, yValues[i] + k3);
+        
+        yValues[i + 1] = yValues[i] + (k1 + 2 * k2 + 2 * k3 + k4) / 6;
     }
-    m = 3;
-    for (int i = 0; i <= n - 4;i++)
+
+    // Основной участок
+    int endIndex = 3;
+    for (int i = 0; i <= stepsCount - 4;i++)
     {
-        m = m + 1;
-        p = 1;
-        q = 0;
-        for (int j = i; j <= m;j++)
+        endIndex++;
+        int col = 1;
+        int row = 0;
+        for (int j = i; j <= endIndex;j++)
         {
-            q = q + 1;
-            z[q][p] = h * F(x[j], y[j]);
+            row = row + 1;
+            diffTable[row][col] = step * EvaluateODE(xValues[j], yValues[j]);
 
         }
-        for (v = 4; v >= 2; v--)
+
+        for (int order = 4; order >= 2; order--)
         {
-            p = p + 1;
-            for (int k = 1; k <= v - 1;k++)
+            col = col + 1;
+            for (int k = 1; k <= order - 1;k++)
             {
-                z[k][p] = z[k + 1][p - 1] - z[k][p - 1];
+                diffTable[k][col] = diffTable[k + 1][col - 1] - diffTable[k][col - 1];
             }
         }
-        dy = h * F(x[3 + i], y[i + 3]) + 1 / 2 * z[3][2] + 5 / 12 * z[2][3] + 3 / 8 * z[1][4];
-        y[4 + i] = y[3 + i] + dy;
+        double deltaY = step * EvaluateODE(xValues[3 + i], yValues[i + 3]) +
+            (1.0 / 2.0) * diffTable[3][2] +
+            (5.0 / 12.0) * diffTable[2][3] +
+            (3.0 / 8.0) * diffTable[1][4];
+        yValues[4 + i] = yValues[3 + i] + deltaY;
     }
-    return y;
 }
 
+// Вспомогательная функция отрисовки одной кривой заданным цветом
+void DrawCurve(HDC hDC, double startX, double step, int stepsCount, const double* yValues, COLORREF color, int originX, int originY, double scale)
+{
+    HPEN curvePen = CreatePen(PS_SOLID, 2, color);
+    HPEN oldPen = (HPEN)SelectObject(hDC, curvePen);
+
+    for (int i = 0; i < stepsCount; i++) {
+        double currentX = startX + i * step;
+        double nextX = currentX + step;
+
+        int screenX1 = (int)(scale * currentX + originX);
+        int screenY1 = (int)(-scale * yValues[i] + originY);
+
+        int screenX2 = (int)(scale * nextX + originX);
+        int screenY2 = (int)(-scale * yValues[i + 1] + originY);
+
+        MoveToEx(hDC, screenX1, screenY1, NULL);
+        LineTo(hDC, screenX2, screenY2);
+    }
+
+    SelectObject(hDC, oldPen);
+    DeleteObject(curvePen);
+}
+
+// Отрисовка осей и всех 5 графиков
+void DrawAllGraphs(double startX, double step, int stepsCount,
+    const double* yPicard, const double* yEuler,
+    const double* yImprovedEuler, const double* yRungeKutta, const double* yAdams)
+{
+    const int originX = 680;
+    const int originY = 400;
+    const double scale = 100.0;
+
+    HWND consoleWindow = GetConsoleWindow();
+    HDC hDC = GetDC(consoleWindow);
+
+    HPEN axisPen = CreatePen(PS_SOLID, 2, RGB(255, 255, 255));
+    HPEN oldPen = (HPEN)SelectObject(hDC, axisPen);
+
+    // Отрисовка осей координат
+    MoveToEx(hDC, originX, originY, NULL);
+    LineTo(hDC, originX + 400, originY); // Ось X
+    MoveToEx(hDC, originX, 100, NULL);
+    LineTo(hDC, originX, originY);       // Ось Y
+
+    SelectObject(hDC, oldPen);
+    DeleteObject(axisPen);
+
+    // Отрисовка кривых разными цветами
+    DrawCurve(hDC, startX, step, stepsCount, yPicard, RGB(0, 255, 255), originX, originY, scale); // Голубой
+    DrawCurve(hDC, startX, step, stepsCount, yEuler, RGB(255, 0, 0), originX, originY, scale); // Красный
+    DrawCurve(hDC, startX, step, stepsCount, yImprovedEuler, RGB(0, 255, 0), originX, originY, scale); // Зеленый
+    DrawCurve(hDC, startX, step, stepsCount, yRungeKutta, RGB(0, 0, 255), originX, originY, scale); // Синий
+    DrawCurve(hDC, startX, step, stepsCount, yAdams, RGB(255, 255, 0), originX, originY, scale); // Желтый
+
+    ReleaseDC(consoleWindow, hDC);
+    (void)_getch();
+}
 
 int main()
 {
-    SetConsoleCP(1251);
     SetConsoleOutputCP(1251);
-    double a = 0.2;
-    double b = 1.2;
-    double h = 0.1;
-    double y0 = 0.25;
-    printf("Метод Пикара:\n");
-    printf("Метод Эйлера:\n");
-    printf("усовершенствованный метод Эйлера:\n");
-    printf("Метод Рунге-Кутта:\n");
-    printf("Метод Адамса:\n");
-    //printf("%f\n", ad(a, b, h, y0));
+    const double startX = 0.2;
+    const double endX = 1.2;
+    const double step = 0.1;
+    const double initialY = 0.25;
+    const int stepsCount = (int)round((endX - startX) / step);
 
-    //оси
-    HDC hDC = GetDC(GetConsoleWindow());
-    HPEN Pen = CreatePen(PS_SOLID, 2, RGB(255, 255, 255));
-    SelectObject(hDC, Pen);
+    double yPicard[POINTS_COUNT] = { 0.0 };
+    double yEuler[POINTS_COUNT] = { 0.0 };
+    double yImprovedEuler[POINTS_COUNT] = { 0.0 };
+    double yRungeKutta[POINTS_COUNT] = { 0.0 };
+    double yAdams[POINTS_COUNT] = { 0.0 };
 
-    MoveToEx(hDC, 300, 400, NULL);//center (300;400) = (0; 0)
-    LineTo(hDC, 1100, 400);
-    MoveToEx(hDC, 300, 100, NULL);
-    LineTo(hDC, 300, 400);
+    SolvePicard(startX, endX, step, initialY, yPicard);
+    SolveEuler(startX, endX, step, initialY, yEuler);
+    SolveImprovedEuler(startX, endX, step, initialY, yImprovedEuler);
+    SolveRungeKutta(startX, endX, step, initialY, yRungeKutta);
+    SolveAdams(startX, endX, step, initialY, yAdams);
 
-    HDC hDC4 = GetDC(GetConsoleWindow());
-    HPEN Pen4 = CreatePen(PS_SOLID, 2, RGB(0, 255, 255));
-    SelectObject(hDC4, Pen4);
-    int count = 0;
-    for (double i = 0.2; i <= 1.1; i = i + 0.1)
-    {
-        MoveToEx(hDC4, 100 * i + 300, -100 * pik(a, b, h, y0)[count] + 400, NULL);
-        LineTo(hDC4, 100 * (i + 0.1) + 300, -100 * pik(a, b, h, y0)[count + 1] + 400);
-        count++;
+    printf("   Численное решение ОДУ   \n\n");
+    printf("     x   |  Пикар  |  Эйлер  | Усов.Эйл| Рунге-К |  Адамс  \n");
+    printf("   ------+---------+---------+---------+---------+---------\n");
+    for (int i = 0; i <= stepsCount; i++) {
+        printf("   %5.2f | %7.4f | %7.4f | %7.4f | %7.4f | %7.4f\n",
+            startX + i * step, yPicard[i], yEuler[i], yImprovedEuler[i], yRungeKutta[i], yAdams[i]);
     }
 
+    printf("\n   Цвета графиков:\n");
+    printf("   Голубой - Метод Пикара\n");
+    printf("   Красный - Метод Эйлера\n");
+    printf("   Зеленый - Усовершенствованный метод Эйлера\n");
+    printf("   Синий   - Метод Рунге-Кутты\n");
+    printf("   Желтый  - Метод Адамса\n");
 
-    HPEN Pen1 = CreatePen(PS_SOLID, 2, RGB(255, 0, 0));
-    SelectObject(hDC4, Pen1);
-    count = 0;
-    for (double i = 0.2; i <= 1.1; i = i + 0.1)
-    {
-        MoveToEx(hDC4, 100 * i + 300, -100 * eyl(a, b, h, y0)[count] + 400, NULL);
-        LineTo(hDC4, 100 * (i + 0.1) + 300, -100 * eyl(a, b, h, y0)[count + 1] + 400);
-        count++;
-    }
-    HPEN Pen2 = CreatePen(PS_SOLID, 2, RGB(0, 255, 0));
-    SelectObject(hDC4, Pen2);
-    count = 0;
-    for (double i = 0.2; i <= 1.1; i = i + 0.1)
-    {
-        MoveToEx(hDC4, 100 * i + 300, -100 * ys_eyl(a, b, h, y0)[count] + 400, NULL);
-        LineTo(hDC4, 100 * (i + 0.1) + 300, -100 * ys_eyl(a, b, h, y0)[count + 1] + 400);
-        count++;
-    }
-    HPEN Pen3 = CreatePen(PS_SOLID, 2, RGB(0, 0, 255));
-    SelectObject(hDC4, Pen3);
-    count = 0;
-    for (double i = 0.2; i <= 1.1; i = i + 0.1)
-    {
-        MoveToEx(hDC4, 100 * i + 300, -100 * ryn(a, b, h, y0)[count] + 400, NULL);
-        LineTo(hDC4, 100 * (i + 0.1) + 300, -100 * ryn(a, b, h, y0)[count + 1] + 400);
-        count++;
-    }
-    HPEN Pen5 = CreatePen(PS_SOLID, 2, RGB(255, 255, 0));
-    SelectObject(hDC4, Pen5);
-    count = 0;
-    for (double i = 0.2; i <= 1.1; i = i + 0.1)
-    {
-        MoveToEx(hDC4, 100 * i + 300, -100 * ad(a, b, h, y0)[count] + 400, NULL);
-        LineTo(hDC4, 100 * (i + 0.1) + 300, -100 * ad(a, b, h, y0)[count + 1] + 400);
-        count++;
-    }
-    _getch();
+    DrawAllGraphs(startX, step, stepsCount, yPicard, yEuler, yImprovedEuler, yRungeKutta, yAdams);
+    return 0;
+
 }
