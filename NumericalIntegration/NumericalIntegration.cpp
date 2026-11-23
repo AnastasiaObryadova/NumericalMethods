@@ -1,109 +1,103 @@
 #include <stdlib.h>
 #define _USE_MATH_DEFINES
 #include <math.h>
-//#include <cmath>
 #include <stdio.h>
-//#include <iostream>
-#include <float.h>
-//#include <Windows.h>
+#include <Windows.h>
 #include <conio.h>
-// Функция, генерирующая случайное действительное число от min до max
-double rando(double min, double max)
+
+// Генерация случайного действительного числа в диапазоне [minVal, maxVal]
+double GenerateRandomDouble(double minVal, double maxVal)
 {
-    return (double)(rand()) / RAND_MAX * (max - min) + min;
+    return (double)(rand()) / RAND_MAX * (maxVal - minVal) + minVal;
 }
-double F(double x)
+
+// Подынтегральная функция: f(x) = -15 / (2 - x)^3
+double EvaluateFunction(double x)
 {
     return -15 / pow((2 - x), 3);
 }
 
-float int_l(int a, int b, int n)
+// Метод левых прямоугольников
+double IntegrateLeftRectangles(double lowerBorder, double upperBorder, int stepsCount)
 {
-    float h, S, x;
-    int i;
-    h = (b - a) * 1.0 / n;
-    S = 0;
-    for (i = 0;i <= n - 1;i++)
+    double step = (upperBorder - lowerBorder) * 1.0 / stepsCount;
+    double sum = 0.0;
+    for (int i = 0; i <= stepsCount - 1; i++)
     {
-        x = a + i * h;
-        S = S + F(x);
+        sum = sum + EvaluateFunction(lowerBorder + i * step);
     }
-    S = h * S;
-    return S;
+    return step * sum;
 }
-float int_p(int a, int b, int n)
+
+// Метод правых прямоугольников
+double IntegrateRightRectangles(double lowerBorder, double upperBorder, int stepsCount)
 {
-    float h, S, x;
-    int i;
-    h = (b - a) * 1.0 / n;
-    S = 0;
-    for (i = 1;i <= n;i++)
+    double step = (upperBorder - lowerBorder) * 1.0 / stepsCount;
+    double sum = 0.0;
+    for (int i = 1;i <= stepsCount;i++)
     {
-        x = a + i * h;
-        S = S + F(x);
+        sum += EvaluateFunction(lowerBorder + i * step);
     }
-    S = h * S;
-    return S;
+    return step * sum;
 }
-float sim(int a, int b, int n)
+
+// Метод Симпсона
+double IntegrateSimpson(double lowerBorder, double upperBorder, int stepsCount)
 {
-    float h;
-    h = (b - a) * 1.0 / n;
-    float s1 = 0;
-    float s2 = 0;
-    for (int i = 1;i <= n;i++)
+    double step = (upperBorder - lowerBorder) / stepsCount;
+    double oddSum = 0.0;
+    double evenSum = 0.0;
+
+    for (int i = 1; i <= stepsCount; i++)
     {
         if (i % 2 != 0)
-            s1 = s1 + F(a + i * h);
+            oddSum = oddSum + EvaluateFunction(lowerBorder + i * step);
         else
-            s2 = s2 + F(a + i * h);
+            evenSum = evenSum + EvaluateFunction(lowerBorder + i * step);
     }
-    return (((F(a) - F(b)) / 2 + 2 * s1 + s2) / 3) * 2 * h;
+    return (((EvaluateFunction(lowerBorder) - EvaluateFunction(upperBorder)) / 2 + 2 * oddSum + evenSum) / 3) * 2 * step;
 }
-float trap(int a, int b, int n)
-{
-    float h;
-    float s = 0;
-    h = (b - a) * 1.0 / n;
 
-    for (int i = 1;i <= n - 1;i++)
-    {
-        s = s + F(a + i * h);
-    }
-    return (s + (F(a) + F(b)) / 2) * h;
-}
-float mon(int a, int b, int n)
+// Метод трапеций
+double IntegrateTrapezoidal(double lowerBorder, double upperBorder, int stepsCount)
 {
-    n = 1000000;
-    float h, x;
-    float s = 0;
-    h = (b - a) * 1.0 / n;
-    for (int i = 0;i <= n;i++)
-    {
-        x = a + (b - a) * rando(0.0, 1.0);
+    double sum = 0.0;
+    double step = (upperBorder - lowerBorder) * 1.0 / stepsCount;
 
-        s = s + F(x);
+    for (int i = 1;i <= stepsCount - 1;i++)
+    {
+        sum = sum + EvaluateFunction(lowerBorder + i * step);
     }
-    return s * h;
+    return (sum + (EvaluateFunction(lowerBorder) + EvaluateFunction(upperBorder)) / 2) * step;
 }
+
+// Метод Монте-Карло
+double IntegrateMonteCarlo(double lowerBorder, double upperBorder, int stepsCount)
+{
+    double sum = 0.0;
+    double step = (upperBorder - lowerBorder) * 1.0 / stepsCount;
+    for (int i = 0;i <= stepsCount;i++)
+    {
+        sum = sum + EvaluateFunction(lowerBorder + (upperBorder - lowerBorder) *
+            GenerateRandomDouble(0.0, 1.0));
+    }
+    return sum * step;
+}
+
 int main()
 {
-    //SetConsoleCP(1251);
-    //SetConsoleOutputCP(1251);
-    int a = 3;
-    int b = 5;
-    int n = 1000;
-    int left = 1;//= 1 левые прямоугольники 0 - правые
-    //double dy = diff(x, F);
-    printf("Метод левых прямоугольников: %f\n", int_l(a, b, n));
-    printf("Метод правых прямоугольников: %f\n", int_p(a, b, n));
-    printf("Метод Симпсона: %f\n", sim(a, b, n));
-    printf("Метод трапеций: %f\n", trap(a, b, n));
-    printf("Метод Монте-Карло: %f\n", mon(a, b, n));
-    printf("%d", rand() % (1 - 0 + 1) + 0);
+    SetConsoleOutputCP(1251);
+    double lowerBorder = 3.0;
+    double upperBorder = 5.0;
+    int stepsCount = 1000000;
+    
+    printf("   Численное интегрирование   \n");
+    printf("   Отрезок: [%.1f, %.1f], число разбиений = %d\n\n", lowerBorder, upperBorder, stepsCount);
 
-
-
-
-
+    printf("   Метод левых прямоугольников: %f\n", IntegrateLeftRectangles(lowerBorder, upperBorder, stepsCount));
+    printf("   Метод правых прямоугольников: %f\n", IntegrateRightRectangles(lowerBorder, upperBorder, stepsCount));
+    printf("   Метод Симпсона: %f\n", IntegrateSimpson(lowerBorder, upperBorder, stepsCount));
+    printf("   Метод трапеций: %f\n", IntegrateTrapezoidal(lowerBorder, upperBorder, stepsCount));
+    printf("   Метод Монте-Карло: %f\n", IntegrateMonteCarlo(lowerBorder, upperBorder, stepsCount));
+    (void)_getch();
 }
